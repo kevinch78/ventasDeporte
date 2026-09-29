@@ -6,9 +6,10 @@ import { Plus } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
+  index?: number;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, index = 0 }) => {
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
 
@@ -20,10 +21,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   return (
     <div 
       onClick={() => navigate(`/producto/${product.slug}`)}
-      className="group relative bg-dark-surface rounded-xl md:rounded-2xl border border-dark-border p-3 md:p-4 hover:border-volt/30 transition-all duration-500 overflow-hidden cursor-pointer flex flex-col h-full"
+      className="group relative bg-dark-surface rounded-xl md:rounded-2xl border border-dark-border p-3 md:p-4 hover:border-volt/30 transition-all duration-500 overflow-hidden cursor-pointer flex flex-col h-full animate-fade-in-up active:scale-[0.98] hover:shadow-[0_0_30px_-5px_rgba(204,255,0,0.15)]"
+      style={{ animationDelay: `${index * 50}ms` }}
     >
+      {/* Background Gradient Effect */}
+      <div className="absolute inset-0 bg-gradient-to-br from-volt/0 via-dark-surface to-volt/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+
       {/* Glow background effect */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-volt/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-32 h-32 bg-volt opacity-0 group-hover:opacity-[0.03] blur-3xl transition-opacity duration-700 pointer-events-none" />
 
       {/* Imagen & Badges */}
       <div className="relative aspect-square rounded-lg md:rounded-xl overflow-hidden mb-3 md:mb-4 bg-dark-card border border-dark-border/50 group-hover:border-volt/20 transition-colors shrink-0">
@@ -70,7 +75,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
           <button
             onClick={handleAddToCart}
-            className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-dark-card border border-dark-border flex items-center justify-center text-gray-300 hover:bg-volt hover:text-volt-contrast hover:border-volt transition-all glow-hover group/btn shrink-0 ml-2"
+            className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-dark-card border border-dark-border flex items-center justify-center text-gray-300 hover:bg-volt hover:text-volt-contrast hover:border-volt transition-all glow-hover group/btn shrink-0 ml-2 active:scale-90"
             aria-label="Añadir al carrito"
           >
             <Plus className="w-4 h-4 md:w-5 md:h-5 transform group-hover/btn:scale-110 transition-transform" />

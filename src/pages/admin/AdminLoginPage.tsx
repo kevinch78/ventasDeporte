@@ -33,7 +33,7 @@ export const AdminLoginPage: React.FC = () => {
             <Lock className="w-8 h-8 text-volt" />
           </div>
           <h1 className="text-2xl font-black text-white uppercase tracking-wider">Acceso Restringido</h1>
-          <p className="text-gray-400 mt-2 text-sm text-center">Panel Administrativo VoltFit</p>
+          <p className="text-gray-400 mt-2 text-sm text-center">Panel Administrativo Victoria</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5 relative z-10">

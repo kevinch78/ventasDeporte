@@ -16,7 +16,7 @@ export const TermsPage: React.FC = () => {
               <h2 className="text-2xl font-bold text-white">Políticas de Garantía</h2>
             </div>
             <p className="text-gray-400 leading-relaxed mb-4">
-              En VoltFit nos comprometemos a ofrecer suplementos 100% originales. Sin embargo, por razones de bioseguridad y salubridad:
+              En Victoria nos comprometemos a ofrecer suplementos 100% originales. Sin embargo, por razones de bioseguridad y salubridad:
             </p>
             <ul className="list-disc pl-5 space-y-2 text-gray-400">
               <li>Solo se aceptan devoluciones si los <strong>sellos de seguridad están intactos</strong>.</li>

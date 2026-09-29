@@ -223,7 +223,7 @@ export const AdminOrdersPage: React.FC = () => {
 
             <div className="p-6 border-t border-dark-border bg-dark-card">
               <a 
-                href={`https://wa.me/57${selectedOrder.telefono}?text=Hola%20${selectedOrder.nombre},%20te%20escribimos%20de%20VoltFit%20respecto%20a%20tu%20pedido%20${selectedOrder.codigoPedido}`}
+                href={`https://wa.me/57${selectedOrder.telefono}?text=Hola%20${selectedOrder.nombre},%20te%20escribimos%20de%20Victoria%20respecto%20a%20tu%20pedido%20${selectedOrder.codigoPedido}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full bg-[#25D366]/10 hover:bg-[#25D366]/20 border border-[#25D366]/30 text-[#25D366] font-bold uppercase tracking-wider py-4 rounded-xl flex items-center justify-center gap-2 transition-all"

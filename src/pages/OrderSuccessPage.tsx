@@ -81,7 +81,7 @@ export const OrderSuccessPage: React.FC = () => {
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Número de Celular (Nequi)</p>
                   <p className="text-2xl font-mono font-bold text-white tracking-wider">300 123 4567</p>
-                  <p className="text-xs text-gray-500 mt-1">A nombre de: VoltFit Deportes</p>
+                  <p className="text-xs text-gray-500 mt-1">A nombre de: Victoria</p>
                 </div>
                 <button 
                   onClick={() => handleCopy('3001234567', 'Número Nequi')}
@@ -100,7 +100,7 @@ export const OrderSuccessPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row sm:gap-6 gap-2">
                     <div>
                       <p className="text-xs text-gray-500">Titular</p>
-                      <p className="text-sm font-semibold text-white">VoltFit Deportes SAS</p>
+                      <p className="text-sm font-semibold text-white">Victoria</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">NIT</p>

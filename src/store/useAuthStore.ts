@@ -15,7 +15,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       login: (email, pass) => {
         if (email === 'admin@deportes.com' && pass === 'admin123') {
-          set({ isAuthenticated: true, user: { email, name: 'Admin VoltFit' } });
+          set({ isAuthenticated: true, user: { email, name: 'Admin Victoria' } });
           return true;
         }
         return false;
