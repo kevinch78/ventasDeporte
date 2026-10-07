@@ -6,13 +6,11 @@ import type { OrderPayload } from '../types';
 import { toast } from 'sonner';
 import { ArrowRight, ShoppingBag, Truck, CreditCard } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
-
-import { useAdminStore } from '../store/useAdminStore';
+import { orderService } from '../services/orderService';
 
 export const CheckoutPage: React.FC = () => {
   const navigate = useNavigate();
   const { items, clearCart } = useCartStore();
-  const addOrder = useAdminStore((state) => state.addOrder);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -42,7 +40,7 @@ export const CheckoutPage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isSubmitting) return;
@@ -59,31 +57,43 @@ export const CheckoutPage: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const codigoPedido = `PED-${Date.now().toString().slice(-6)}`;
-    
-    const orderPayload: OrderPayload = {
-      ...formData,
-      codigoPedido,
-      items,
-      subtotal,
-      costoEnvio,
-      total,
-      fecha: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    };
+    try {
+      const orderPayloadToApi = {
+        nombreCliente: formData.nombre,
+        telefono: formData.telefono,
+        ciudad: formData.ciudad,
+        direccion: formData.direccion,
+        notas: formData.notas,
+        metodoEnvio: formData.tipoEnvio === 'domicilio' ? 'Local' : 'Nacional',
+        metodoPago: formData.metodoPago === 'nequi' ? 'Nequi' : 'Bancolombia',
+        items: items.map((i) => ({ productoId: i.id, cantidad: i.cantidad })),
+      };
 
-    // Agregar a store de admin
-    addOrder({ ...orderPayload, estado: 'PENDIENTE' });
+      const createdOrder = await orderService.createOrder(orderPayloadToApi);
 
-    // Almacenar para la pantalla de éxito
-    sessionStorage.setItem('lastOrder', JSON.stringify(orderPayload));
+      const orderPayloadToWhatsapp: OrderPayload = {
+        ...formData,
+        codigoPedido: createdOrder.codigo,
+        items,
+        subtotal,
+        costoEnvio,
+        total: createdOrder.total,
+        fecha: new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      };
 
-    // Abrir WhatsApp
-    const whatsappUrl = generateWhatsAppUrl(orderPayload);
-    window.open(whatsappUrl, '_blank');
+      sessionStorage.setItem('lastOrder', JSON.stringify(orderPayloadToWhatsapp));
 
-    // Limpiar carrito y redirigir
-    clearCart();
-    navigate('/pedido-confirmado');
+      const whatsappUrl = generateWhatsAppUrl(orderPayloadToWhatsapp);
+      window.open(whatsappUrl, '_blank');
+
+      clearCart();
+      navigate('/pedido-confirmado');
+    } catch (error) {
+      console.error(error);
+      toast.error('Ocurrió un error al crear tu pedido. Intenta nuevamente.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (items.length === 0) return null;

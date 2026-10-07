@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { HomePage } from './pages/HomePage';
+import { CatalogPage } from './pages/CatalogPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { OrderSuccessPage } from './pages/OrderSuccessPage';
 import { AdminLayout } from './layouts/AdminLayout';
@@ -32,6 +33,7 @@ function App() {
       />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/catalogo" element={<CatalogPage />} />
         <Route path="/producto/:slug" element={<ProductDetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/pedido-confirmado" element={<OrderSuccessPage />} />

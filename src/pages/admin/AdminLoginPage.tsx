@@ -10,9 +10,9 @@ export const AdminLoginPage: React.FC = () => {
   const login = useAuthStore(state => state.login);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(email, password);
+    const success = await login(email, password);
     if (success) {
       toast.success('Bienvenido al panel');
       navigate('/admin/pedidos');
@@ -72,7 +72,7 @@ export const AdminLoginPage: React.FC = () => {
         
         <div className="mt-8 pt-6 border-t border-dark-border text-center">
           <p className="text-xs text-gray-500 font-mono">
-            Tip: admin@deportes.com / admin123
+            Tip: admin@victoria.com / admin123
           </p>
         </div>
       </div>

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { useAdminStore } from '../../store/useAdminStore';
+import React, { useState, useEffect } from 'react';
 import type { Product } from '../../types';
 import { Plus, Edit2, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { productService } from '../../services/productService';
 
 export const AdminProductsPage: React.FC = () => {
-  const { products, toggleProductActive, addProduct, updateProduct } = useAdminStore();
+  const [products, setProducts] = useState<Product[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
@@ -16,16 +16,35 @@ export const AdminProductsPage: React.FC = () => {
     precio: 0,
     precioAntes: 0,
     descripcion: '',
-    imagenUrl: '',
     stock: 0,
-    badges: ''
+    badges: '',
+    beneficios: '',
+    modoUso: '',
+    activo: true
   };
 
   const [formData, setFormData] = useState(defaultFormState);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [specsList, setSpecsList] = useState<{key: string, value: string}[]>([]);
+
+  const fetchProducts = async () => {
+    try {
+      const data = await productService.getProducts();
+      setProducts(data.data);
+    } catch (error) {
+      toast.error('Error al cargar productos');
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const handleOpenNew = () => {
     setEditingProduct(null);
     setFormData(defaultFormState);
+    setImageFile(null);
+    setSpecsList([]);
     setIsModalOpen(true);
   };
 
@@ -34,38 +53,91 @@ export const AdminProductsPage: React.FC = () => {
     setFormData({
       ...product,
       precioAntes: product.precioAntes || 0,
-      badges: product.badges.join(', ')
-    });
+      badges: product.badges.join(', '),
+      beneficios: product.beneficios ? product.beneficios.join('\n') : '',
+      modoUso: product.modoUso || '',
+      activo: product.activo ?? true
+    } as typeof defaultFormState);
+    
+    const parsedSpecs = product.especificaciones || {};
+    setSpecsList(Object.entries(parsedSpecs).map(([k, v]) => ({ key: k, value: String(v) })));
+    
+    setImageFile(null);
     setIsModalOpen(true);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: ['precio', 'precioAntes', 'stock'].includes(name) ? Number(value) : value
-    }));
+    const { name, value, type } = e.target;
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: ['precio', 'precioAntes', 'stock'].includes(name) ? Number(value) : value
+      }));
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const payload = {
-      ...formData,
-      slug: formData.nombre.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      badges: formData.badges.split(',').map(b => b.trim()).filter(Boolean),
-      precioAntes: formData.precioAntes > 0 ? formData.precioAntes : undefined
-    };
+    try {
+      const formPayload = new FormData();
+      formPayload.append('nombre', formData.nombre);
+      formPayload.append('categoria', formData.categoria);
+      formPayload.append('precio', formData.precio.toString());
+      formPayload.append('descripcion', formData.descripcion);
+      formPayload.append('stock', formData.stock.toString());
+      
+      const parsedBadges = formData.badges.split(',').map(b => b.trim()).filter(Boolean);
+      formPayload.append('badges', JSON.stringify(parsedBadges));
+      
+      const parsedBeneficios = formData.beneficios.split('\n').map(b => b.trim()).filter(Boolean);
+      formPayload.append('beneficios', JSON.stringify(parsedBeneficios));
+      
+      const specsObj = specsList.reduce((acc, curr) => {
+        if (curr.key.trim() && curr.value.trim()) {
+          acc[curr.key.trim()] = curr.value.trim();
+        }
+        return acc;
+      }, {} as Record<string, string>);
+      formPayload.append('especificaciones', JSON.stringify(specsObj));
+      
+      formPayload.append('modoUso', formData.modoUso);
+      formPayload.append('activo', String(formData.activo));
 
-    if (editingProduct) {
-      updateProduct({ ...payload, id: editingProduct.id, activo: editingProduct.activo } as Product);
-      toast.success('Producto actualizado');
-    } else {
-      addProduct(payload);
-      toast.success('Producto creado');
+      if (formData.precioAntes > 0) {
+        formPayload.append('precioAntes', formData.precioAntes.toString());
+      }
+      
+      if (imageFile) {
+        formPayload.append('imagen', imageFile);
+      }
+
+      if (editingProduct) {
+        await productService.updateProduct(editingProduct.id, formPayload);
+        toast.success('Producto actualizado');
+      } else {
+        await productService.createProduct(formPayload);
+        toast.success('Producto creado');
+      }
+      
+      fetchProducts();
+      setIsModalOpen(false);
+    } catch (error) {
+      toast.error('Error al guardar el producto');
+      console.error(error);
     }
-    
-    setIsModalOpen(false);
+  };
+
+  const toggleProductActive = async (id: string, activo: boolean) => {
+    try {
+      await productService.updateProduct(id, { activo: !activo });
+      fetchProducts();
+    } catch (error) {
+      toast.error('Error al actualizar estado');
+    }
   };
 
   return (
@@ -114,7 +186,7 @@ export const AdminProductsPage: React.FC = () => {
                   </td>
                   <td className="p-4 text-center">
                     <button 
-                      onClick={() => toggleProductActive(product.id)}
+                      onClick={() => toggleProductActive(product.id, product.activo || false)}
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
                         product.activo 
                           ? 'bg-volt/10 border-volt/30 text-volt hover:bg-volt/20' 
@@ -152,13 +224,26 @@ export const AdminProductsPage: React.FC = () => {
               </button>
             </div>
             
-            <form id="product-form" onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-1">Nombre del Producto</label>
-                <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
+            <form id="product-form" onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex justify-between items-start gap-4">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-400 mb-1">Nombre del Producto</label>
+                  <input required type="text" name="nombre" value={formData.nombre} onChange={handleInputChange} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
+                </div>
+                
+                <div className="flex items-center gap-2 pt-6">
+                  <label className="text-sm font-semibold text-gray-400">¿Visible en tienda?</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, activo: !prev.activo }))}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${formData.activo ? 'bg-volt' : 'bg-gray-600'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.activo ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-400 mb-1">Categoría</label>
                   <select required name="categoria" value={formData.categoria} onChange={handleInputChange} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none">
@@ -173,7 +258,7 @@ export const AdminProductsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-400 mb-1">Precio COP</label>
                   <input required type="number" min="0" name="precio" value={formData.precio} onChange={handleInputChange} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
@@ -185,13 +270,25 @@ export const AdminProductsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-1">URL de Imagen</label>
-                <input required type="url" name="imagenUrl" value={formData.imagenUrl} onChange={handleInputChange} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" placeholder="https://..." />
-                {formData.imagenUrl && (
-                  <div className="mt-2 w-20 h-20 rounded border border-dark-border overflow-hidden">
-                    <img src={formData.imagenUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                <label className="block text-sm font-semibold text-gray-400 mb-1">Imagen</label>
+                <div className="flex items-center gap-4">
+                  {editingProduct?.imagenUrl && !imageFile && (
+                    <div className="w-20 h-20 shrink-0 bg-dark-base rounded-xl overflow-hidden border border-white/10">
+                      <img src={editingProduct.imagenUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  {imageFile && (
+                    <div className="w-20 h-20 shrink-0 bg-dark-base rounded-xl overflow-hidden border border-volt/50">
+                      <img src={URL.createObjectURL(imageFile)} alt="New Preview" className="w-full h-full object-cover opacity-80" />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
+                    {editingProduct && !imageFile && (
+                      <p className="text-xs text-gray-500 mt-2">Sube un archivo nuevo para reemplazar la imagen actual.</p>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <div>
@@ -200,8 +297,35 @@ export const AdminProductsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-400 mb-1">Descripción</label>
-                <textarea required name="descripcion" value={formData.descripcion} onChange={handleInputChange} rows={3} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none resize-none" />
+                <label className="block text-sm font-semibold text-gray-400 mb-1">Descripción Corta</label>
+                <textarea required name="descripcion" value={formData.descripcion} onChange={handleInputChange} rows={2} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none resize-none" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-1">Beneficios (Un beneficio por línea)</label>
+                <textarea name="beneficios" value={formData.beneficios} onChange={handleInputChange} rows={3} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none resize-none" placeholder="Apto para veganos&#10;36g Carbohidratos" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-400 mb-1">Modo de Uso</label>
+                <textarea name="modoUso" value={formData.modoUso} onChange={handleInputChange} rows={3} className="w-full bg-dark-card border border-white/10 rounded-lg px-4 py-3 focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none resize-none" placeholder="Disolver 3 cucharadas en una botella..." />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-semibold text-gray-400">Especificaciones Técnicas</label>
+                  <button type="button" onClick={() => setSpecsList([...specsList, { key: '', value: '' }])} className="text-xs font-bold text-volt hover:text-white flex items-center gap-1 transition-colors"><Plus className="w-3 h-3" /> Añadir Dato</button>
+                </div>
+                {specsList.length === 0 && <p className="text-xs text-gray-500 mb-2">No hay especificaciones añadidas.</p>}
+                <div className="space-y-2">
+                  {specsList.map((spec, idx) => (
+                    <div key={idx} className="flex gap-2 items-start">
+                      <input type="text" placeholder="Clave (Ej: Uso)" value={spec.key} onChange={(e) => { const newSpecs = [...specsList]; newSpecs[idx].key = e.target.value; setSpecsList(newSpecs); }} className="w-1/3 bg-dark-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
+                      <input type="text" placeholder="Valor (Ej: Pre-entreno)" value={spec.value} onChange={(e) => { const newSpecs = [...specsList]; newSpecs[idx].value = e.target.value; setSpecsList(newSpecs); }} className="flex-1 bg-dark-card border border-white/10 rounded-lg px-3 py-2 text-sm focus:border-volt focus:ring-1 focus:ring-volt text-white outline-none" />
+                      <button type="button" onClick={() => setSpecsList(specsList.filter((_, i) => i !== idx))} className="p-2 mt-0.5 text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"><XCircle className="w-4 h-4" /></button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </form>
 

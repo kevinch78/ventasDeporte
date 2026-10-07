@@ -20,6 +20,14 @@ export const useCartStore = create<CartState>()(
       items: [],
       isOpen: false,
       addItem: (product) => {
+        // Validación estricta: asegurar que el id es un UUID del backend (y no un string como "1" o mock)
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(product.id)) {
+          toast.error('Producto inválido o desactualizado. Por favor, limpia tu caché.');
+          console.error(`Invalid product ID (not UUID): ${product.id}`);
+          return;
+        }
+
         const { items } = get();
         const existingItem = items.find((i) => i.id === product.id);
 
@@ -63,6 +71,14 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      version: 1, // Bump para limpiar el localStorage viejo con mocks
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0) {
+          // Si viene de la versión 0 (datos viejos), limpiar el carrito
+          return { items: [] };
+        }
+        return persistedState;
+      },
       partialize: (state) => ({ items: state.items }),
     }
   )

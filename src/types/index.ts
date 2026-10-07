@@ -11,6 +11,9 @@ export interface Product {
   imagenUrl: string;
   stock: number;
   badges: string[];
+  beneficios?: string[];
+  especificaciones?: Record<string, string>;
+  modoUso?: string;
   activo?: boolean;
 }
 

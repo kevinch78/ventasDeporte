@@ -1,17 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAdminStore } from '../store/useAdminStore';
+import { productService } from '../services/productService';
+import type { Product } from '../types';
 import { useCartStore } from '../store/useCartStore';
 import { Navbar } from '../components/layout/Navbar';
 import { ProductCard } from '../components/catalog/ProductCard';
-import { Plus, Minus, ArrowLeft, Info, Truck } from 'lucide-react';
+import { Plus, Minus, ArrowLeft, Info, Truck, Check, Droplet, ShieldCheck, Dumbbell } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const ProductDetailPage: React.FC = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const allProducts = useAdminStore((state) => state.products);
-  const product = allProducts.find((p) => p.slug === slug && p.activo !== false);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    if (!slug) return;
+    const fetchProduct = async () => {
+      try {
+        setIsLoading(true);
+        const data = await productService.getProductBySlug(slug);
+        setProduct(data);
+      } catch (error) {
+        console.error(error);
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProduct();
+  }, [slug]);
   
   const addItem = useCartStore((state) => state.addItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -19,7 +37,18 @@ export const ProductDetailPage: React.FC = () => {
   const setCartOpen = useCartStore((state) => state.setCartOpen);
 
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'info' | 'envios'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'especificaciones' | 'uso' | 'calidad'>('info');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-dark-base flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex flex-col items-center justify-center p-4">
+          <h1 className="text-2xl font-black text-white uppercase tracking-wider mb-6 text-center animate-pulse">Cargando producto...</h1>
+        </div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -39,9 +68,7 @@ export const ProductDetailPage: React.FC = () => {
     );
   }
 
-  const relatedProducts = allProducts
-    .filter((p) => p.categoria === product.categoria && p.id !== product.id && p.activo !== false)
-    .slice(0, 3);
+  const relatedProducts: Product[] = []; // Opcional: Fetch related products si el backend lo soporta, o dejar vacío.
 
   const cartItem = cartItems.find((i) => i.id === product.id);
   const availableStock = product.stock - (cartItem?.cantidad || 0);
@@ -100,9 +127,13 @@ export const ProductDetailPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
           {/* Image */}
-          <div className="relative aspect-square rounded-3xl overflow-hidden bg-dark-surface border border-dark-border group">
+          <div className="relative aspect-square rounded-3xl overflow-hidden bg-dark-surface border border-dark-border group flex items-center justify-center p-4 sm:p-8">
             <div className="absolute inset-0 bg-gradient-to-tr from-volt/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            <img src={product.imagenUrl} alt={product.nombre} className="w-full h-full object-cover p-2 rounded-3xl" />
+            <img 
+              src={product.imagenUrl} 
+              alt={product.nombre} 
+              className="w-full h-full object-contain max-h-full max-w-full drop-shadow-2xl group-hover:scale-105 transition-transform duration-300" 
+            />
           </div>
 
           {/* Details */}
@@ -114,16 +145,35 @@ export const ProductDetailPage: React.FC = () => {
               <span className={`px-3 py-1 text-xs font-mono font-bold uppercase tracking-widest rounded border ${availableStock > 0 ? 'bg-volt/10 border-volt/30 text-volt' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>
                 {availableStock > 0 ? 'Stock Disponible' : 'Agotado'}
               </span>
-              {product.badges.map((badge, idx) => (
-                <span key={idx} className="bg-volt text-dark-base px-3 py-1 text-xs font-mono font-black uppercase tracking-widest rounded">
-                  {badge}
-                </span>
-              ))}
+              {product.badges && product.badges.map((badge, idx) => {
+                const cleanBadge = badge.replace(/^[<\[\s]+|[>\]\s]+$/g, '').trim();
+                if (!cleanBadge) return null;
+                const displayBadge = cleanBadge.toLowerCase().includes('sdas') || cleanBadge.toLowerCase().includes('test')
+                  ? 'DESTACADO'
+                  : cleanBadge;
+                return (
+                  <span key={idx} className="bg-volt text-dark-base px-2.5 py-1 text-xs font-mono font-black uppercase tracking-widest rounded shadow-[0_0_10px_rgba(204,255,0,0.4)]">
+                    {displayBadge}
+                  </span>
+                );
+              })}
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-white uppercase tracking-tighter leading-tight mb-4">
               {product.nombre}
             </h1>
+
+            {/* Beneficios Clave */}
+            {product.beneficios && product.beneficios.length > 0 && (
+              <ul className="mb-6 space-y-2">
+                {product.beneficios.map((beneficio, idx) => (
+                  <li key={idx} className="flex items-start gap-2 text-gray-300 font-semibold text-sm">
+                    <Check className="w-5 h-5 text-volt shrink-0" />
+                    <span>{beneficio}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <div className="flex items-end gap-4 mb-8">
               <span className="text-4xl font-black text-volt font-mono">
@@ -179,48 +229,94 @@ export const ProductDetailPage: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="border border-dark-border rounded-2xl overflow-hidden bg-dark-surface">
-              <div className="flex border-b border-dark-border">
+            <div className="border border-dark-border rounded-2xl overflow-hidden bg-dark-surface mt-8">
+              <div className="flex border-b border-dark-border overflow-x-auto no-scrollbar">
                 <button 
                   onClick={() => setActiveTab('info')}
-                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'info' ? 'bg-dark-card text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50'}`}
+                  className={`shrink-0 flex-1 px-4 py-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'info' ? 'bg-dark-card text-white border-b-2 border-volt' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50 border-b-2 border-transparent'}`}
                 >
-                  <Info className="w-4 h-4" /> Detalles
+                  <Info className="w-4 h-4" /> Resumen
                 </button>
                 <div className="w-px bg-dark-border" />
                 <button 
-                  onClick={() => setActiveTab('envios')}
-                  className={`flex-1 py-4 text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'envios' ? 'bg-dark-card text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50'}`}
+                  onClick={() => setActiveTab('especificaciones')}
+                  className={`shrink-0 flex-1 px-4 py-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'especificaciones' ? 'bg-dark-card text-white border-b-2 border-volt' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50 border-b-2 border-transparent'}`}
                 >
-                  <Truck className="w-4 h-4" /> Envíos
+                  <Dumbbell className="w-4 h-4" /> Specs
+                </button>
+                <div className="w-px bg-dark-border" />
+                <button 
+                  onClick={() => setActiveTab('uso')}
+                  className={`shrink-0 flex-1 px-4 py-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'uso' ? 'bg-dark-card text-white border-b-2 border-volt' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50 border-b-2 border-transparent'}`}
+                >
+                  <Droplet className="w-4 h-4" /> Uso
+                </button>
+                <div className="w-px bg-dark-border" />
+                <button 
+                  onClick={() => setActiveTab('calidad')}
+                  className={`shrink-0 flex-1 px-4 py-4 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-colors ${activeTab === 'calidad' ? 'bg-dark-card text-white border-b-2 border-volt' : 'text-gray-500 hover:text-gray-300 hover:bg-dark-card/50 border-b-2 border-transparent'}`}
+                >
+                  <ShieldCheck className="w-4 h-4" /> Calidad
                 </button>
               </div>
-              <div className="p-6 bg-dark-card text-sm text-gray-300 leading-relaxed min-h-[150px]">
-                {activeTab === 'info' ? (
+              
+              <div className="p-6 bg-dark-card min-h-[150px]">
+                {activeTab === 'info' && (
                   <div className="space-y-4">
-                    <p>{product.descripcion}</p>
-                    <div>
-                      <strong className="text-white">Modo de Uso:</strong>
-                      <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
-                        <li>Tomar 1 scoop con 250ml de agua o bebida favorita.</li>
-                        <li>Consumir preferiblemente post-entrenamiento.</li>
-                        <li>No exceder la dosis recomendada.</li>
+                    <p className="text-sm text-gray-300 leading-relaxed">{product.descripcion}</p>
+                    <div className="pt-4 border-t border-dark-border mt-4">
+                      <p className="text-xs text-gray-400 font-semibold mb-2">OPCIONES DE ENVÍO:</p>
+                      <ul className="space-y-2 text-xs text-gray-400">
+                        <li className="flex items-center gap-2"><Truck className="w-3.5 h-3.5 text-volt" /> Medellín y Área Metropolitana: Entregas mismo día.</li>
+                        <li className="flex items-center gap-2"><Truck className="w-3.5 h-3.5 text-volt" /> Resto de Colombia: 48-72 horas por transportadora.</li>
                       </ul>
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-4 text-gray-400">
-                    <p><strong className="text-white">Cobertura:</strong> Hacemos envíos a todo Colombia.</p>
-                    <ul className="space-y-3">
-                      <li className="flex items-start gap-2">
-                        <span className="text-volt font-bold mt-1">⚡</span>
-                        <span><strong>Medellín y Área Metropolitana:</strong> Entregas en menos de 24 horas hábiles. Costo fijo: $8.000 COP.</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-volt font-bold mt-1">🚚</span>
-                        <span><strong>Resto del País:</strong> Despachamos mediante transportadora con pago contra entrega. Tiempo estimado: 48 a 72 horas hábiles.</span>
-                      </li>
-                    </ul>
+                )}
+                
+                {activeTab === 'especificaciones' && (
+                  <div>
+                    {product.especificaciones && Object.keys(product.especificaciones).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Object.entries(product.especificaciones).map(([key, value]) => (
+                          <div key={key} className="bg-white/5 p-3 rounded-lg border border-white/10 flex flex-col justify-center">
+                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{key}</span>
+                            <span className="text-sm font-bold text-white mt-0.5">{value as string}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-400">No hay especificaciones técnicas disponibles.</p>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'uso' && (
+                  <div className="bg-dark-base border border-dark-border p-5 rounded-xl flex gap-4 items-start">
+                    <div className="w-12 h-12 rounded-full bg-volt/10 flex items-center justify-center shrink-0 border border-volt/20">
+                      <Droplet className="w-6 h-6 text-volt" />
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold uppercase tracking-wider mb-2">Modo de Preparación</h4>
+                      <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+                        {product.modoUso ? product.modoUso : 'Consulta la etiqueta del producto para instrucciones de uso.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'calidad' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="w-10 h-10 text-emerald-400" />
+                      <div>
+                        <h4 className="text-white font-bold uppercase tracking-wider">Informed Sport Certified</h4>
+                        <p className="text-xs text-gray-400 mt-1">Libre de sustancias prohibidas</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-300 leading-relaxed">
+                      Nuestros suplementos están desarrollados bajo los estándares más estrictos de calidad mundial y sometidos a pruebas rigurosas contra sustancias prohibidas. Tu salud y tu rendimiento profesional están protegidos.
+                    </p>
                   </div>
                 )}
               </div>
